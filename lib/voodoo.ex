@@ -4,8 +4,8 @@ defmodule Voodoo do
 
   # ```
   # use Voodoo, otp_app: :myapp
-  
-  
+
+
   # ```
   # """
 
@@ -44,7 +44,7 @@ defmodule Voodoo do
   """
   @spec router(Conn.t | Socket.t) :: module
   def router(%Conn{private: %{phoenix_router: router}}), do: router
-  def router(%Socket{router: router}), do: router
+  def router(%{__struct__: _, router: router}), do: router
 
   # defmacro __using__(options) do
   #   otp_app = Keyword.fetch!(options, :otp_app)
@@ -71,7 +71,7 @@ defmodule Voodoo do
 
   #   # quote do
   #   #   defmacro __using__(_opts) do
-        
+
   #   #   end
   #   # end
   # end
@@ -89,4 +89,3 @@ defmodule Voodoo do
   # defmacro scope(path, alias, opts, list), do: voodoo_child(path, alias, opts, list)
 
 end
-
