@@ -9,8 +9,6 @@ defmodule Voodoo do
   # ```
   # """
 
-  alias Plug.Conn
-  alias Phoenix.LiveView.Socket
 
   @doc """
   Generates a reverse router function with the given name based upon a
@@ -43,7 +41,7 @@ defmodule Voodoo do
   Turns a Conn or Socket into the name of the router that routed it.
   """
   @spec router(Conn.t | Socket.t) :: module
-  def router(%Conn{private: %{phoenix_router: router}}), do: router
+  def router(%{private: %{phoenix_router: router}}), do: router
   def router(%{__struct__: _, router: router}), do: router
 
   # defmacro __using__(options) do
