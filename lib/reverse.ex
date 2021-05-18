@@ -14,17 +14,19 @@ defmodule Voodoo.Reverse do
   def reverse_router_clauses(name, router_module) do
     routes = router_module.__routes__()
     routes
-    |> Enum.flat_map(&rr_clauses(name, router_module, &1))
+    |> Enum.flat_map(&route_clauses(name, router_module, &1))
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(&elem(&1, 1))
     |> Enum.reject(&is_nil/1)
   end
 
-  defp rr_clauses(name, router_module, route = %{path: path}) do
+  defp route_clauses(name, router_module, route = %{path: path}) do
     places = inspect_path(path)
     case route do
       %{helper: nil} -> []
       %{metadata: %{phoenix_live_view: {plug, action}}} ->
+        IO.inspect(plug: plug)
+        IO.inspect(route: route)
         live_clauses(name, router_module, plug, action, route, places)
       %{plug: plug, plug_opts: action} ->
         plug_clauses(name, router_module, plug, action, route, places)
@@ -71,15 +73,33 @@ defmodule Voodoo.Reverse do
     ]
   end
 
+  defp plug_clauses(name, router_module, plug, :index = action, route, places) do
+    places_args = Macro.generate_arguments(places, __MODULE__)
+    args = [action] ++ places_args
+    qs = Macro.var(:qs, __MODULE__)
+    id = String.to_atom(route.helper)
+    helper = route_helper(router_module, route)
+    [ # no args defaults to :index action:
+      {2 + places, clause(name, [plug | places_args], args, helper)},
+      {2 + places, clause(name, [id | places_args], args, helper)}
+    ]
+    ++ do_plug_clauses(name, places, plug, id, args, qs, helper)
+  end
+
   defp plug_clauses(name, router_module, plug, action, route, places) do
     args = [action] ++ Macro.generate_arguments(places, __MODULE__)
     qs = Macro.var(:qs, __MODULE__)
     id = String.to_atom(route.helper)
     helper = route_helper(router_module, route)
+    do_plug_clauses(name, places, plug, id, args, qs, helper)
+  end
+
+  defp do_plug_clauses(name, places, plug, id, args, qs, helper) do
     [ {4 + places, clause(name, [plug | args] ++ [qs], args ++ [qs], helper)},
       {3 + places, clause(name, [plug | args], args, helper)},
       {4 + places, clause(name, [id | args] ++ [qs], args ++ [qs], helper)},
-      {3 + places, clause(name, [id | args], args, helper)} ]
+      {3 + places, clause(name, [id | args], args, helper)}
+    ]
   end
 
   defp route_helper(router_module, %{helper: helper}) do
