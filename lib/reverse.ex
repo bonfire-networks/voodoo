@@ -25,8 +25,6 @@ defmodule Voodoo.Reverse do
     case route do
       %{helper: nil} -> []
       %{metadata: %{phoenix_live_view: {plug, action}}} ->
-        IO.inspect(plug: plug)
-        IO.inspect(route: route)
         live_clauses(name, router_module, plug, action, route, places)
       %{plug: plug, plug_opts: action} ->
         plug_clauses(name, router_module, plug, action, route, places)
