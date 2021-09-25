@@ -33,7 +33,9 @@ defmodule Voodoo do
   defmacro def_reverse_router(name, opts) do
     quote do
       require Voodoo.Reverse
+
       Voodoo.Reverse.def_reverse_router(unquote(name), unquote(opts))
+
     end
   end
 

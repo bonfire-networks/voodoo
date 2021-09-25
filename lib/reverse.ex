@@ -22,10 +22,16 @@ defmodule Voodoo.Reverse do
 
   defp route_clauses(name, router_module, route = %{path: path}) do
     places = inspect_path(path)
+
     case route do
       %{helper: nil} -> []
+
       %{metadata: %{phoenix_live_view: {plug, action}}} ->
         live_clauses(name, router_module, plug, action, route, places)
+
+      %{metadata: %{phoenix_live_view: {plug, action, _, _}}} ->
+        live_clauses(name, router_module, plug, action, route, places)
+
       %{plug: plug, plug_opts: action} ->
         plug_clauses(name, router_module, plug, action, route, places)
     end
