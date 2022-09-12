@@ -5,10 +5,8 @@ defmodule Voodoo do
   # ```
   # use Voodoo, otp_app: :myapp
 
-
   # ```
   # """
-
 
   @doc """
   Generates a reverse router function with the given name based upon a
@@ -35,14 +33,13 @@ defmodule Voodoo do
       require Voodoo.Reverse
 
       Voodoo.Reverse.def_reverse_router(unquote(name), unquote(opts))
-
     end
   end
 
   @doc """
   Turns a Conn or Socket into the name of the router that routed it.
   """
-  @spec router(Conn.t | Socket.t) :: module
+  @spec router(Conn.t() | Socket.t()) :: module
   def router(%{private: %{phoenix_router: router}}), do: router
   def router(%{__struct__: _, router: router}), do: router
 
@@ -87,5 +84,4 @@ defmodule Voodoo do
   # defmacro scope(opts, list), do: voodoo_child(opts, list)
   # defmacro scope(path, opts, list), do: voodoo_child(path, opts, list)
   # defmacro scope(path, alias, opts, list), do: voodoo_child(path, alias, opts, list)
-
 end
