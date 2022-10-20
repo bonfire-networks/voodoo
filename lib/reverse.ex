@@ -1,43 +1,60 @@
 defmodule Voodoo.Reverse do
   @moduledoc false
 
-  defmacro def_reverse_router(name, for: router_module = {:__aliases__, _, _})
-           when is_atom(name) do
-    router_module = Macro.expand(router_module, __CALLER__)
-    Code.ensure_loaded(router_module)
+  defmacro def_reverse_router(name, opts)
+           when is_atom(name) and is_list(opts) do
+    with router_module = {:__aliases__, _, _} <- opts[:for] do
+      router_module = Macro.expand(router_module, __CALLER__)
+      Code.ensure_loaded(router_module)
+      filter_module = Macro.expand(opts[:filter][:module], __CALLER__)
+      filter_module_fn = if Code.ensure_loaded?(filter_module) do
+        {filter_module, opts[:filter][:fun]}
+      end
 
-    quote do
-      (unquote_splicing(reverse_router_clauses(name, router_module)))
+      quote do
+        (unquote_splicing(reverse_router_clauses(name, router_module, filter_module_fn)))
+      end
     end
   end
 
-  @spec reverse_router_clauses(atom, module) :: [Macro.t()]
-  def reverse_router_clauses(name, router_module) do
+  @spec reverse_router_clauses(atom, module, any) :: [Macro.t()]
+  def reverse_router_clauses(name, router_module, filter_module_fn) do
     routes = router_module.__routes__()
 
     routes
-    |> Enum.flat_map(&route_clauses(name, router_module, &1))
+    |> Enum.flat_map(&route_clauses(name, router_module, filter_module_fn, &1))
+    |> Enum.reject(&is_nil/1)
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(&elem(&1, 1))
     |> Enum.reject(&is_nil/1)
   end
 
-  defp route_clauses(name, router_module, route = %{path: path}) do
+  defp route_clauses(name, router_module, filter_module_fn, route = %{path: path}) do
     places = inspect_path(path)
+    # IO.inspect(route)
 
     case route do
       %{helper: nil} ->
-        []
+        nil
 
       %{metadata: %{phoenix_live_view: {plug, action}}} ->
-        live_clauses(name, router_module, plug, action, route, places)
+        if filter_module(plug, filter_module_fn), do: live_clauses(name, router_module, plug, action, route, places)
 
       %{metadata: %{phoenix_live_view: {plug, action, _, _}}} ->
-        live_clauses(name, router_module, plug, action, route, places)
+        if filter_module(plug, filter_module_fn), do: live_clauses(name, router_module, plug, action, route, places)
 
       %{plug: plug, plug_opts: action} ->
-        plug_clauses(name, router_module, plug, action, route, places)
+        if filter_module(plug, filter_module_fn), do: plug_clauses(name, router_module, plug, action, route, places)
     end
+    || []
+  end
+
+  defp filter_module(plug, {module, fun}) do
+    apply(module, fun, [plug])
+    |> IO.inspect(label: plug)
+  end
+  defp filter_module(_, other) do
+    true
   end
 
   defp live_clauses(
