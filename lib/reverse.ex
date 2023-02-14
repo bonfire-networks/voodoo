@@ -7,9 +7,11 @@ defmodule Voodoo.Reverse do
       router_module = Macro.expand(router_module, __CALLER__)
       Code.ensure_loaded(router_module)
       filter_module = Macro.expand(opts[:filter][:module], __CALLER__)
-      filter_module_fn = if Code.ensure_loaded?(filter_module) do
-        {filter_module, opts[:filter][:fun]}
-      end
+
+      filter_module_fn =
+        if Code.ensure_loaded?(filter_module) do
+          {filter_module, opts[:filter][:fun]}
+        end
 
       quote do
         (unquote_splicing(reverse_router_clauses(name, router_module, filter_module_fn)))
@@ -38,21 +40,25 @@ defmodule Voodoo.Reverse do
         nil
 
       %{metadata: %{phoenix_live_view: {plug, action}}} ->
-        if filter_module(plug, filter_module_fn), do: live_clauses(name, router_module, plug, action, route, places)
+        if filter_module(plug, filter_module_fn),
+          do: live_clauses(name, router_module, plug, action, route, places)
 
       %{metadata: %{phoenix_live_view: {plug, action, _, _}}} ->
-        if filter_module(plug, filter_module_fn), do: live_clauses(name, router_module, plug, action, route, places)
+        if filter_module(plug, filter_module_fn),
+          do: live_clauses(name, router_module, plug, action, route, places)
 
       %{plug: plug, plug_opts: action} ->
-        if filter_module(plug, filter_module_fn), do: plug_clauses(name, router_module, plug, action, route, places)
-    end
-    || []
+        if filter_module(plug, filter_module_fn),
+          do: plug_clauses(name, router_module, plug, action, route, places)
+    end ||
+      []
   end
 
   defp filter_module(plug, {module, fun}) do
     apply(module, fun, [plug])
     |> IO.inspect(label: plug)
   end
+
   defp filter_module(_, other) do
     true
   end
