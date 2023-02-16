@@ -9,8 +9,10 @@ defmodule Voodoo.Reverse do
       filter_module = Macro.expand(opts[:filter][:module], __CALLER__)
 
       filter_module_fn =
-        if Code.ensure_loaded?(filter_module) do
+        if not is_nil(filter_module) and Code.ensure_loaded?(filter_module) do
           {filter_module, opts[:filter][:fun]}
+        else
+          {Code, :ensure_loaded?}
         end
 
       quote do
@@ -56,10 +58,10 @@ defmodule Voodoo.Reverse do
 
   defp filter_module(plug, {module, fun}) do
     apply(module, fun, [plug])
-    |> IO.inspect(label: plug)
+    # |> IO.inspect(label: "Include #{plug} in router")
   end
 
-  defp filter_module(_, other) do
+  defp filter_module(_, _other) do
     true
   end
 
