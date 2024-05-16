@@ -1,12 +1,5 @@
 defmodule Voodoo do
-  # @moduledoc """
-  # Declares a config-overrideable router.
-
-  # ```
-  # use Voodoo, otp_app: :myapp
-
-  # ```
-  # """
+  @moduledoc "./README.md" |> File.stream!() |> Enum.drop(1) |> Enum.join()
 
   @doc """
   Generates a reverse router function with the given name based upon a
