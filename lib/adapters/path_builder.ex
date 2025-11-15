@@ -1,13 +1,13 @@
 defmodule Voodoo.PathBuilder do
   @moduledoc """
   Builds URL paths from route patterns without depending on deprecated `Phoenix.Router.Helpers`.
-  
+
   Instead of calling `user_path(conn, :show, 1)`, we extract the pattern `/users/:id` and interpolate it with the provided arguments at runtime.
   """
 
   @doc """
   Extracts route information and generates path builder clauses.
-  
+
   Returns a list of function clauses that can be used to build paths from route patterns and arguments.
   """
   def handle_clauses(name, router_module, filter_module_fn) do
@@ -130,15 +130,16 @@ defmodule Voodoo.PathBuilder do
   defp clause(name, params, args, param_names, route) do
     conn = Macro.var(:conn_or_socket_or_endpoint, __MODULE__)
     path_pattern = route.path
-    
+
     # Build the path by calling our interpolation function
-    call = quote do
-      Voodoo.PathBuilder.interpolate_path(
-        unquote(path_pattern),
-        unquote(param_names),
-        unquote(args)
-      )
-    end
+    call =
+      quote do
+        Voodoo.PathBuilder.interpolate_path(
+          unquote(path_pattern),
+          unquote(param_names),
+          unquote(args)
+        )
+      end
 
     quote do
       def unquote(name)(unquote(conn), unquote_splicing(params)) do
@@ -149,11 +150,16 @@ defmodule Voodoo.PathBuilder do
 
   @doc """
   Interpolates a path pattern with the given arguments.
-  
+
+  Filters out module atoms (used for routing) before interpolation.
+
   ## Examples
-  
+
       iex> interpolate_path("/users/:id", [:id], [123])
       "/users/123"
+      
+      iex> interpolate_path("/@:username", [:username], [Bonfire.Data.Identity.Character, "mayel"])
+      "/@mayel"
       
       iex> interpolate_path("/posts/:post_id/comments/:id", [:post_id, :id], [5, 10])
       "/posts/5/comments/10"
@@ -165,27 +171,43 @@ defmodule Voodoo.PathBuilder do
       "/users/123?page=2"
   """
   def interpolate_path(pattern, param_names, args) when is_list(args) do
+    # Filter out module atoms (used for routing) before interpolation
+    filtered_args = filter_module_atoms(args)
+
     # Separate path params from query string
-    {path_args, query_args} = split_args(args, length(param_names))
-    
+    {path_args, query_args} = split_args(filtered_args, length(param_names))
+
     # Build the base path
     path = build_path(pattern, param_names, path_args)
-    
+
     # Append query string if present
     append_query_string(path, query_args)
+  end
+
+  # Filter out atoms that look like module names (contain dots or start with uppercase)
+  defp filter_module_atoms(args) do
+    Enum.reject(args, fn
+      atom when is_atom(atom) and not is_nil(atom) ->
+        # Check if it's a module atom (has Elixir. prefix when inspected or contains dots)
+        atom_str = Atom.to_string(atom)
+        String.starts_with?(atom_str, "Elixir.") or String.contains?(atom_str, ".")
+
+      _ ->
+        false
+    end)
   end
 
   defp split_args(args, param_count) do
     path_args = Enum.take(args, param_count)
     query_args = Enum.drop(args, param_count) |> List.first()
-    
+
     {path_args, query_args}
   end
 
   defp build_path(pattern, param_names, args) do
     # Zip param names with their values
     replacements = Enum.zip(param_names, args) |> Map.new()
-    
+
     # Replace each :param in the pattern with its value
     Enum.reduce(replacements, pattern, fn {param_name, value}, acc ->
       param_str = ":#{param_name}"
@@ -196,26 +218,27 @@ defmodule Voodoo.PathBuilder do
 
   defp append_query_string(path, nil), do: path
   defp append_query_string(path, []), do: path
-  
-  defp append_query_string(path, query_params) when is_map(query_params) or is_list(query_params) do
-    query_string = 
+
+  defp append_query_string(path, query_params)
+       when is_map(query_params) or is_list(query_params) do
+    query_string =
       query_params
       |> Enum.filter(fn {_k, v} -> not is_nil(v) end)
       |> URI.encode_query()
-    
+
     case query_string do
       "" -> path
       qs -> "#{path}?#{qs}"
     end
   end
-  
+
   defp append_query_string(path, _), do: path
 
   @doc """
   Extracts parameter names from a route path pattern.
-  
+
   ## Examples
-  
+
       iex> extract_params("/users/:id")
       [:id]
       

@@ -34,7 +34,6 @@ defmodule Voodoo.Reverse do
   Uses `Voodoo.PathBuilder` by default.
   """
   def reverse_router_clauses(name, router_module, filter_module_fn) do
-    
     if adapter = Application.get_env(:voodoo, :route_adapter, Voodoo.PathBuilder) do
       adapter.handle_clauses(name, router_module, filter_module_fn)
     else

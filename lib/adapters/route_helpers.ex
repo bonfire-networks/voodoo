@@ -1,11 +1,11 @@
 defmodule Voodoo.RouteHelpers do
   @moduledoc """
   Legacy route generation using deprecated `Phoenix.Router.Helpers`.
-  
+
   This module can provide compatibility for older Phoenix versions by wrapping the existing Phoenix path helpers. Use `Voodoo.PathBuilder` for new code.
-  
+
   To use this legacy mode, configure:
-  
+
       config :voodoo, route_adapter: Voodoo.RouteHelpers
   """
 
