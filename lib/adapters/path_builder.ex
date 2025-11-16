@@ -179,21 +179,21 @@ defmodule Voodoo.PathBuilder do
   """
   def interpolate_path(pattern, param_names, args) when is_list(args) do
     # Debug what we're receiving
-    flood(
+    debug(
       "PathBuilder interpolate_path: pattern=#{pattern}, param_names=#{inspect(param_names)}, args=#{inspect(args)}"
     )
 
     # Filter out module atoms (used for routing) before interpolation
     filtered_args = filter_module_atoms(args)
-    flood("PathBuilder after filter: filtered_args=#{inspect(filtered_args)}")
+    debug("PathBuilder after filter: filtered_args=#{inspect(filtered_args)}")
 
     # Separate path params from query string
     {path_args, query_args} = split_args(filtered_args, length(param_names))
-    flood("PathBuilder split: path_args=#{inspect(path_args)}, query_args=#{inspect(query_args)}")
+    debug("PathBuilder split: path_args=#{inspect(path_args)}, query_args=#{inspect(query_args)}")
 
     # Build the base path
     path = build_path(pattern, param_names, path_args)
-    flood("PathBuilder result: #{path}")
+    debug("PathBuilder result: #{path}")
 
     # Append query string if present
     append_query_string(path, query_args)
