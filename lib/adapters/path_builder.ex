@@ -5,6 +5,8 @@ defmodule Voodoo.PathBuilder do
   Instead of calling `user_path(conn, :show, 1)`, we extract the pattern `/users/:id` and interpolate it with the provided arguments at runtime.
   """
 
+  import Untangle
+
   @doc """
   Extracts route information and generates path builder clauses.
 
@@ -98,30 +100,35 @@ defmodule Voodoo.PathBuilder do
 
   defp plug_clauses(name, plug, :index = action, route, places, params) do
     places_args = Macro.generate_arguments(places, __MODULE__)
-    args = [action] ++ places_args
     qs = Macro.var(:qs, __MODULE__)
     id = String.to_atom(route.helper)
 
+    # For :index action, generate clauses that match on [plug] or [id] 
+    # but only pass places_args (no action) to interpolation
     [
-      {2 + places, clause(name, [plug | places_args], args, params, route)},
-      {2 + places, clause(name, [id | places_args], args, params, route)}
-    ] ++ do_plug_clauses(name, places, plug, id, args, qs, params, route)
+      {2 + places, clause(name, [plug | places_args], places_args, params, route)},
+      {2 + places, clause(name, [id | places_args], places_args, params, route)}
+    ] ++ do_plug_clauses(name, plug, id, places_args, qs, params, route)
   end
 
   defp plug_clauses(name, plug, action, route, places, params) do
-    args = [action] ++ Macro.generate_arguments(places, __MODULE__)
+    places_args = Macro.generate_arguments(places, __MODULE__)
     qs = Macro.var(:qs, __MODULE__)
     id = String.to_atom(route.helper)
 
-    do_plug_clauses(name, places, plug, id, args, qs, params, route)
+    do_plug_clauses(name, plug, id, places_args, qs, params, route)
   end
 
-  defp do_plug_clauses(name, places, plug, id, args, qs, params, route) do
+  defp do_plug_clauses(name, plug, id, places_args, qs, params, route) do
+    # All controller clauses should pass only places_args to interpolation
+    # The action atoms are only for pattern matching
     [
-      {4 + places, clause(name, [plug | args] ++ [qs], args ++ [qs], params, route)},
-      {3 + places, clause(name, [plug | args], args, params, route)},
-      {4 + places, clause(name, [id | args] ++ [qs], args ++ [qs], params, route)},
-      {3 + places, clause(name, [id | args], args, params, route)}
+      {4 + length(places_args),
+       clause(name, [plug | places_args] ++ [qs], places_args ++ [qs], params, route)},
+      {3 + length(places_args), clause(name, [plug | places_args], places_args, params, route)},
+      {4 + length(places_args),
+       clause(name, [id | places_args] ++ [qs], places_args ++ [qs], params, route)},
+      {3 + length(places_args), clause(name, [id | places_args], places_args, params, route)}
     ]
   end
 
@@ -171,25 +178,33 @@ defmodule Voodoo.PathBuilder do
       "/users/123?page=2"
   """
   def interpolate_path(pattern, param_names, args) when is_list(args) do
+    # Debug what we're receiving
+    flood(
+      "PathBuilder interpolate_path: pattern=#{pattern}, param_names=#{inspect(param_names)}, args=#{inspect(args)}"
+    )
+
     # Filter out module atoms (used for routing) before interpolation
     filtered_args = filter_module_atoms(args)
+    flood("PathBuilder after filter: filtered_args=#{inspect(filtered_args)}")
 
     # Separate path params from query string
     {path_args, query_args} = split_args(filtered_args, length(param_names))
+    flood("PathBuilder split: path_args=#{inspect(path_args)}, query_args=#{inspect(query_args)}")
 
     # Build the base path
     path = build_path(pattern, param_names, path_args)
+    flood("PathBuilder result: #{path}")
 
     # Append query string if present
     append_query_string(path, query_args)
   end
 
-  # Filter out atoms that look like module names (contain dots or start with uppercase)
+  # Filter out atoms that look like module names OR controller actions
   defp filter_module_atoms(args) do
     Enum.reject(args, fn
       atom when is_atom(atom) and not is_nil(atom) ->
-        # Check if it's a module atom (has Elixir. prefix when inspected or contains dots)
         atom_str = Atom.to_string(atom)
+        # Only filter module names (contain dots or start with Elixir.)
         String.starts_with?(atom_str, "Elixir.") or String.contains?(atom_str, ".")
 
       _ ->
