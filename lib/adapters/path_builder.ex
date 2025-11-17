@@ -98,17 +98,31 @@ defmodule Voodoo.PathBuilder do
     ]
   end
 
-  defp plug_clauses(name, plug, :index = action, route, places, params) do
+  defp plug_clauses(name, plug, :index = _action, route, places, params) do
     places_args = Macro.generate_arguments(places, __MODULE__)
     qs = Macro.var(:qs, __MODULE__)
     id = String.to_atom(route.helper)
 
-    # For :index action, generate clauses that match on [plug] or [id] 
-    # but only pass places_args (no action) to interpolation
-    [
-      {2 + places, clause(name, [plug | places_args], places_args, params, route)},
-      {2 + places, clause(name, [id | places_args], places_args, params, route)}
-    ] ++ do_plug_clauses(name, plug, id, places_args, qs, params, route)
+    # For :index action with no path params, don't generate clauses that accept the action
+    # Just generate clauses that match on helper name alone
+    if places == 0 do
+      [
+        {1, clause(name, [plug], [], params, route)},
+        {1, clause(name, [id], [], params, route)},
+        {2, clause(name, [plug, qs], [qs], params, route)},
+        {2, clause(name, [id, qs], [qs], params, route)}
+      ]
+    else
+      # For :index action with path params (like /users/:user_id/posts)
+      # Pass only places_args (the path params) to interpolation, not the action
+      [
+        {2 + places, clause(name, [plug | places_args], places_args, params, route)},
+        {2 + places, clause(name, [id | places_args], places_args, params, route)},
+        {3 + places,
+         clause(name, [plug | places_args] ++ [qs], places_args ++ [qs], params, route)},
+        {3 + places, clause(name, [id | places_args] ++ [qs], places_args ++ [qs], params, route)}
+      ]
+    end
   end
 
   defp plug_clauses(name, plug, action, route, places, params) do
